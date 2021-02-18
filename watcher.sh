@@ -29,32 +29,34 @@ usage()
     cat << EOFU!
  Usage: $0 [flags]
 
-Monitors a given directory for files and if found executes a script with the file name as parameter.
+Monitors a given directory for files and if found executes an application 
+with the file name as parameter.
 
-Watcher.sh can be run from either the command line or cron. When it starts it looks for the following.
-1) Set your directory and file types to watch with --dir=/foo/bar/*.flat
-2) echo run >> /foo/bar/watcher/watcher.cmd
-3) Set the script to run on the files with --script=/fizz/buzz.sh
-4) Run $0 on command line, or by cron.
-4) Stop the process with echo stop >> /foo/bar/watcher/watcher.cmd
+Watcher.sh can be run from either the command line or cron, and a watch job 
+for files in '/foo/bar/*.txt' can be set up as follows.
+1) Create a '/foo/bar/watcher' directory. If you forget, watcher 
+   will create one automatically.
+2) Set the directory and file types to watch for: --dir='/foo/bar/*.txt'
+3) Set watcher command to run: echo run >> /foo/bar/watcher/watcher.cmd 
+4) Stop the process with: echo stop >> /foo/bar/watcher/watcher.cmd
 
-If the watcher.cmd file contains stop, cron will not be able to run watcher.sh.
+**NOTE: The stop command prevents everyone from running watcher on /foo/bar.**
 
 Flags:
+-a, -app, --app [/foo/bar.sh]: Specifies the application to run when files appear in the path
+ denoted by --dir.
 -d, -dir, --dir [/foo/bar/*.flat]: Specifies the file types to watch for in the directory.
 -h, -help, --help: This help message.
--s, -script, --script [/foo/bar.sh]: Specifies the script to run when files appear in the path
- denoted by --dir.
 -t, -test, --test: Display debug information to STDOUT.
--v, -version, --version: Print script version and exits.
+-v, -version, --version: Print watcher.sh version and exits.
  Example:
-    ${0} --dir=/home/user/dir/*.txt --script=/home/user/bin/cleanup.sh
+    ${0} --dir=/home/user/dir/*.txt --app=/home/user/bin/cleanup.sh
 EOFU!
 }
 
 ##### Non-user-related variables ########
-export VERSION=0.2
-export which_script=''
+export VERSION=1.0
+export application=''
 export watch_dir=''
 export is_test=false
 
@@ -64,7 +66,7 @@ export is_test=false
 # -l is for long options with double dash like --version
 # the comma separates different long options
 # -a is for long options with single dash like -version
-options=$(getopt -l "dir:,help,script:,test,version" -o "d:hs:tv" -a -- "$@")
+options=$(getopt -l "app:,dir:,help,test,version" -o "a:d:htv" -a -- "$@")
 if [ $? != 0 ] ; then echo "Failed to parse options...exiting." >&2 ; exit 1 ; fi
 # set --:
 # If no arguments follow this option, then the positional parameters are unset. Otherwise, the positional parameters
@@ -74,6 +76,10 @@ eval set -- "$options"
 while true
 do
     case $1 in
+    -a|--app)
+        shift
+        export application="$1"
+        ;;
     -d|--dir)
         shift
         export watch_dir="$1"
@@ -81,10 +87,6 @@ do
     -h|--help)
         usage
         exit 0
-        ;;
-    -s|--script)
-        shift
-        export which_script="$1"
         ;;
     -t|--test)
         export is_test=true
@@ -101,12 +103,12 @@ do
     shift
 done
 # Sed file, input file names, and git branch name are all required.
-: ${which_script:?Missing -s,--script} ${watch_dir:?Missing -d,--dir}
+: ${application:?Missing -a,--app} ${watch_dir:?Missing -d,--dir}
 
-# Test if the script we want to run actually exists.
-# If the script does not at least 755 permissions -x will fail.
-if [[ ! -x "$which_script" ]]; then
-    echo "Error: could not find $which_script or it may not be executable." >&2
+# Test if the application we want to run actually exists.
+# If the application does not at least 755 permissions -x will fail.
+if [[ ! -x "$application" ]]; then
+    echo "Error: could not find $application or it may not be executable." >&2
     exit 1
 fi
 
@@ -149,16 +151,18 @@ trap 'ls -laR $WATCHER_DIR; exit 1' SIGINT
 run_command()
 {
     local my_file=''
+    local time=''
     # Look for new files in the given directory, but there may not be any.
     ls $watch_dir 2>/dev/null | while read my_file
     do
-        local time=$(date +"%Y-%m-%d %H:%M:%S")
         # Test the output of the script and log result.
         # It is the scripts responsibility to move or 
         # modify files so they do not get re-run.
-        if $which_script $my_file; then
+        if $application $my_file; then
+            time=$(date +"%Y-%m-%d %H:%M:%S")
             echo "[$time] $my_file loaded successfully"
         else
+            time=$(date +"%Y-%m-%d %H:%M:%S")
             echo "[$time] FAILED to load $my_file" 
         fi
     done
