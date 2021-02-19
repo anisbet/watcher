@@ -8,11 +8,12 @@ This behaviour can be changed by spawning a child process for each application, 
 Watcher can be run on different directories and file types, but only one watcher can watch any given directory. If another process tries to run a second instance in the same directory, watcher.sh displays a message with the running instance's pid and exits.
 
 # Instructions for running
-Watcher.sh can be run from either the command line or cron, and a watch job for files in '/foo/bar/*.txt' can be set up as follows.
+A watcher.sh job can be set up as follows.
 1) Create a '/foo/bar/watcher' directory. If you forget, watcher will create one automatically.
 2) Set the directory and file types to watch for: --dir='/foo/bar/*.txt'
 3) Set watcher command to run: echo run >> /foo/bar/watcher/watcher.cmd 
-4) Stop the process with: echo stop >> /foo/bar/watcher/watcher.cmd 
+4) Run watcher.sh with nohup or cron or what-have-you.
+5) Stop watcher.sh with: echo stop >> /foo/bar/watcher/watcher.cmd 
 
 **NOTE: The stop command prevents everyone from running watcher on /foo/bar.**
 
