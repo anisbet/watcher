@@ -1,7 +1,7 @@
 # Watcher
-This script watches for changes in a given directory then runs an application.
+This bash script watches for changes in a given directory then runs an application.
 
-Watcher runs on a one-second cycle called a tick, and any files that match --dir are passed, one-at-a-time to an application specified with the required --script flag. Watcher will back off until the helper application has finished each file before checking for new ones. 
+Watcher runs on a one-second cycle called a tick, and any files that match --dir are passed, one-at-a-time to an application specified with the required --app flag. Watcher will back off until the helper application has finished each file before checking for new ones. 
 
 This behaviour can be changed by spawning a child process for each application, but by default it is assumed that the application cannot run asynchronously, which is the safer bet.
 
