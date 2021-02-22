@@ -1,5 +1,5 @@
 # Watcher
-This bash script watches for changes in a given directory then runs an application.
+This bash script watches for changes in a given directory then runs an application. It can be run like a service where the user does not have privileges to start and stop services.
 
 Watcher runs on a one-second cycle called a tick, and any files that match --dir are passed, one-at-a-time to an application specified with the required --app flag. Watcher assumed that the helper app runs synchronously and will back off until the it has finished each file before watcher.sh checks for new ones. This behaviour can be changed by running the helper as a background process.
 

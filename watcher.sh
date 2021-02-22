@@ -47,6 +47,8 @@ Flags:
  denoted by --dir.
 -d, -dir, --dir [/foo/bar/*.flat]: Specifies the file types to watch for in the directory.
 -h, -help, --help: This help message.
+-n, -no_loop, --no_loop: Lets the helper app loop through the new files with no file parameter.
+    watcher will back off until it has completed all it's files.
 -t, -test, --test: Display debug information to STDOUT.
 -v, -version, --version: Print watcher.sh version and exits.
  Example:
@@ -55,10 +57,13 @@ EOFU!
 }
 
 ##### Non-user-related variables ########
-export VERSION=1.0
+export VERSION=1.1
 export application=''
 export watch_dir=''
 export is_test=false
+# Default true: watcher.sh starts an instance of the helper app for each new file found.
+#        false: watcher.sh starts an instance of the helper app to process all new files.
+export use_file_loop=true
 
 ### Check input parameters.
 # $@ is all command line parameters passed to the script.
@@ -66,7 +71,7 @@ export is_test=false
 # -l is for long options with double dash like --version
 # the comma separates different long options
 # -a is for long options with single dash like -version
-options=$(getopt -l "app:,dir:,help,test,version" -o "a:d:htv" -a -- "$@")
+options=$(getopt -l "app:,dir:,help,no_loop,test,version" -o "a:d:hntv" -a -- "$@")
 if [ $? != 0 ] ; then echo "Failed to parse options...exiting." >&2 ; exit 1 ; fi
 # set --:
 # If no arguments follow this option, then the positional parameters are unset. Otherwise, the positional parameters
@@ -87,6 +92,9 @@ do
     -h|--help)
         usage
         exit 0
+        ;;
+    -n|--no_loop)
+        export use_file_loop=false
         ;;
     -t|--test)
         export is_test=true
@@ -121,18 +129,23 @@ WATCHER_DIR=$WATCHER_DIR_BASE/watcher
 #  * stop - Stop checking, clean up any child processes and exit.
 COMMAND_FILE=$WATCHER_DIR/watcher.cmd
 LOCK_DIR=$WATCHER_DIR/locks
+[[ "$is_test" == true ]] && echo "lock dir: $LOCK_DIR "
+[[ "$is_test" == true ]] && echo "cmds dir: $COMMAND_FILE "
+[[ "$is_test" == true ]] && echo "watch dir: $WATCHER_DIR "
 if [ ! -d "$LOCK_DIR" ]; then
     echo "creating $WATCHER_DIR"
-    mkdir -p $LOCK_DIR
+    mkdir -p "$LOCK_DIR"
 fi
 
 # Save the PID of the script to a pid file, and remove it on exit.
 # If another instance tries to run while this one is running exit.
 my_pid_file=$WATCHER_DIR/watcher.pid
 if [ -f "$my_pid_file" ]; then
-    other_running_pid=$(cat $my_pid_file)
-    echo "Script is already running [process ${other_running_pid}]"
-    echo "It can be gracefully stopped by appending 'stop' to $COMMAND_FILE "
+    if [[ "$is_test" == true ]]; then
+        other_running_pid=$(cat $my_pid_file)
+        echo "Script is already running [process ${other_running_pid}]"
+        echo "It can be gracefully stopped by appending 'stop' to $COMMAND_FILE "
+    fi
     exit 0
 else
     # Create a file with current PID to indicate that process is running.
@@ -155,16 +168,33 @@ run_command()
     # Look for new files in the given directory, but there may not be any.
     ls $watch_dir 2>/dev/null | while read my_file
     do
-        # Test the output of the script and log result.
-        # It is the scripts responsibility to move or 
-        # modify files so they do not get re-run.
-        if $application $my_file; then
-            time=$(date +"%Y-%m-%d %H:%M:%S")
-            echo "[$time] $my_file loaded successfully"
-        else
-            time=$(date +"%Y-%m-%d %H:%M:%S")
-            echo "[$time] FAILED to load $my_file" 
-        fi
+        case $use_file_loop in
+        # Let the helper app loop through the new files.
+        false)
+            # Run the app without an argument.
+            if $application; then
+                time=$(date +"%Y-%m-%d %H:%M:%S")
+                echo "[$time] watcher - $application status: SUCCESS "
+            else
+                time=$(date +"%Y-%m-%d %H:%M:%S")
+                echo "[$time] watcher - $application status: FAILED " 
+            fi
+            # Return breaks out of the loop since all files are handled by app.
+            return
+            ;;
+        # Default use this loop for each file as an argument to the app.
+        true)
+            # Run the app with the file as argument.
+            if $application $my_file; then
+                time=$(date +"%Y-%m-%d %H:%M:%S")
+                echo "[$time] watcher - $application status: SUCCESS, param: $my_file "
+            else
+                time=$(date +"%Y-%m-%d %H:%M:%S")
+                echo "[$time] watcher - $application status: FAILED, param: $my_file " 
+            fi
+            ;;
+        esac
+        
     done
 }
 
@@ -174,13 +204,13 @@ run_command()
 # to see if the user wants the service to shutdown it down.
 while true; do
     if [ ! -r "$COMMAND_FILE" ]; then 
-        echo "Error: $COMMAND_FILE file not found, exiting." 2>&1
+        echo "Error: $COMMAND_FILE file not found, exiting." >&2
         exit 1
     else
         # Find the command which is the last non-commented line.
         CMD_STR=$(egrep -ve '^#' $COMMAND_FILE | tail -1)
         if [ -z "$CMD_STR" ]; then
-            echo "Error: no command read from $COMMAND_FILE Exiting." 2>&1
+            echo "Error: no command read from $COMMAND_FILE Exiting." >&2
             exit 2
         fi
     fi
