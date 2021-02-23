@@ -57,7 +57,7 @@ EOFU!
 }
 
 ##### Non-user-related variables ########
-export VERSION=1.1
+export VERSION=1.2
 export application=''
 export watch_dir=''
 export is_test=false
@@ -112,14 +112,6 @@ do
 done
 # Sed file, input file names, and git branch name are all required.
 : ${application:?Missing -a,--app} ${watch_dir:?Missing -d,--dir}
-
-# Test if the application we want to run actually exists.
-# If the application does not at least 755 permissions -x will fail.
-if [[ ! -x "$application" ]]; then
-    echo "Error: could not find $application or it may not be executable." >&2
-    exit 1
-fi
-
 # Make a directory where we store the command and pids of child processes.
 WATCHER_DIR_BASE=$(dirname "$watch_dir")
 WATCHER_DIR=$WATCHER_DIR_BASE/watcher
@@ -129,22 +121,43 @@ WATCHER_DIR=$WATCHER_DIR_BASE/watcher
 #  * stop - Stop checking, clean up any child processes and exit.
 COMMAND_FILE=$WATCHER_DIR/watcher.cmd
 LOCK_DIR=$WATCHER_DIR/locks
-[[ "$is_test" == true ]] && echo "lock dir: $LOCK_DIR "
-[[ "$is_test" == true ]] && echo "cmds dir: $COMMAND_FILE "
-[[ "$is_test" == true ]] && echo "watch dir: $WATCHER_DIR "
+[[ "$is_test" == true ]] && echo "lock dir: $LOCK_DIR " >&2
+[[ "$is_test" == true ]] && echo "cmds dir: $COMMAND_FILE " >&2
+[[ "$is_test" == true ]] && echo "watch dir: $WATCHER_DIR " >&2
 if [ ! -d "$LOCK_DIR" ]; then
     echo "creating $WATCHER_DIR"
     mkdir -p "$LOCK_DIR"
+fi
+## Set up logging.
+LOG_FILE="$WATCHER_DIR/watcher.log"
+# Logs messages to STDERR and $LOG file.
+# param:  Log file name. The file is expected to be a fully qualified path or the output
+#         will be directed to a file in the directory the script's running directory.
+# param:  Message to put in the file.
+# param:  (Optional) name of a operation that called this function.
+logit()
+{
+    local message="$1"
+    local time=$(date +"%Y-%m-%d %H:%M:%S")
+    [[ "$is_test" == false ]] && echo -e "[$time] $message" >>$LOG_FILE
+    echo -e "[$time] $message" >&2
+}
+
+# Test if the application we want to run actually exists.
+# If the application does not at least 755 permissions -x will fail.
+if [[ ! -x "$application" ]]; then
+    logit "Error: could not find $application or it may not be executable."
+    exit 1
 fi
 
 # Save the PID of the script to a pid file, and remove it on exit.
 # If another instance tries to run while this one is running exit.
 my_pid_file=$WATCHER_DIR/watcher.pid
 if [ -f "$my_pid_file" ]; then
+    other_running_pid=$(cat $my_pid_file)
+    logit "Script is already running [process ${other_running_pid}]"
     if [[ "$is_test" == true ]]; then
-        other_running_pid=$(cat $my_pid_file)
-        echo "Script is already running [process ${other_running_pid}]"
-        echo "It can be gracefully stopped by appending 'stop' to $COMMAND_FILE "
+        logit "It can be gracefully stopped by appending 'stop' to $COMMAND_FILE "
     fi
     exit 0
 else
@@ -155,10 +168,10 @@ else
 fi
 # on exit remove the pid file as part of clean up.
 # lock files in $LOCK_DIR may be diagnostic so leave them there until next run.
-trap 'rm -f "$my_pid_file"' EXIT
+trap 'rm -f "$my_pid_file"; logit "Cleaning up, exiting."' EXIT
 # If the process is killed with ctrl-c the script will exit and the above
 # trap will also fire.
-trap 'ls -laR $WATCHER_DIR; exit 1' SIGINT
+trap 'ls -laR $WATCHER_DIR; logit "Received SIGINT"; exit 1' SIGINT
 
 ######### load user function ##########
 run_command()
@@ -173,11 +186,9 @@ run_command()
         false)
             # Run the app without an argument.
             if $application; then
-                time=$(date +"%Y-%m-%d %H:%M:%S")
-                echo "[$time] watcher - $application status: SUCCESS "
+                logit "watcher - $application status: SUCCESS "
             else
-                time=$(date +"%Y-%m-%d %H:%M:%S")
-                echo "[$time] watcher - $application status: FAILED " 
+                logit "watcher - $application status: FAILED " 
             fi
             # Return breaks out of the loop since all files are handled by app.
             return
@@ -186,11 +197,9 @@ run_command()
         true)
             # Run the app with the file as argument.
             if $application $my_file; then
-                time=$(date +"%Y-%m-%d %H:%M:%S")
-                echo "[$time] watcher - $application status: SUCCESS, param: $my_file "
+                logit "watcher - $application status: SUCCESS, param: $my_file "
             else
-                time=$(date +"%Y-%m-%d %H:%M:%S")
-                echo "[$time] watcher - $application status: FAILED, param: $my_file " 
+                logit "watcher - $application status: FAILED, param: $my_file " 
             fi
             ;;
         esac
@@ -204,13 +213,13 @@ run_command()
 # to see if the user wants the service to shutdown it down.
 while true; do
     if [ ! -r "$COMMAND_FILE" ]; then 
-        echo "Error: $COMMAND_FILE file not found, exiting." >&2
+        logit "Error: $COMMAND_FILE file not found, exiting."
         exit 1
     else
         # Find the command which is the last non-commented line.
         CMD_STR=$(egrep -ve '^#' $COMMAND_FILE | tail -1)
         if [ -z "$CMD_STR" ]; then
-            echo "Error: no command read from $COMMAND_FILE Exiting." >&2
+            logit "Error: no command read from $COMMAND_FILE Exiting."
             exit 2
         fi
     fi
@@ -225,7 +234,7 @@ while true; do
                     old_pid=$(basename $running_process)
                     if ! pgrep --parent "${old_pid}" >/dev/null 2>&1 ; then
                         rm $running_process
-                        [[ "$is_test" == true ]] && echo "process $old_pid finished"
+                        [[ "$is_test" == true ]] && logit "process $old_pid finished"
                     fi
                 done
             else
@@ -234,15 +243,15 @@ while true; do
                 run_command &
                 pid=${!}
                 touch $LOCK_DIR/$pid
-                [[ "$is_test" == true ]] && echo "starting process: $pid"
+                [[ "$is_test" == true ]] && logit "starting process: $pid"
             fi
             ;;
         s|stop)
-            echo "stop  [$COMMAND_FILE]"
+            logit "stop requested [$COMMAND_FILE]"
             exit 0
             ;;
         *)
-            echo -e "Error: garbled command [$COMMAND_FILE].\nSee --help for more information, exiting." >&2
+            logit "Error: garbled command [$COMMAND_FILE].\nSee --help for more information, exiting."
             exit 1
             ;;
     esac

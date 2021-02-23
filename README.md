@@ -8,12 +8,20 @@ Watcher can be run on different directories and file types, but only one watcher
 # Instructions for running
 A watcher.sh job can be set up as follows.
 1) Create a '/foo/bar/watcher' directory. If you forget, watcher will create one automatically.
-2) Set the directory and file types to watch for: --dir='/foo/bar/*.txt'
-3) Set watcher command to run: echo run >> /foo/bar/watcher/watcher.cmd 
-4) Run watcher.sh with nohup or cron or what-have-you.
-5) Stop watcher.sh with: echo stop >> /foo/bar/watcher/watcher.cmd 
+2) Add 'run' command to watcher.cmd. 
+3) Run watcher.sh with command line, nohup, cron or what-have-you.
+4) To stop watcher add 'stop' to the watcher.cmd file. 
 
 **NOTE: The stop command in a given watcher.cmd file prevents everyone from running that instance of watcher.**
+
+## Example
+To watch for '*.txt' files in directory '/foo/bar':
+`$ mkdir -p /foo/bar/watcher`
+`$ echo run >> /foo/bar/watcher/watcher.cmd`
+`$ nohup ./watcher.sh --dir=/foo/bar/*.txt --app=/app/path/app.sh`
+...
+When you want the watcher to stop:
+`$ echo stop >> /foo/bar/watcher/watcher.cmd`
 
 ## Commands
 Possible commands are:
@@ -23,7 +31,7 @@ Possible commands are:
 * You can append commands in a long list if you like because watcher only obeys the last non-commented command. In a panic you can clobber or append a command to the watcher.cmd file.
 
 ## watcher directory
-A watcher directory is created in the directory to be watched. watcher.sh looks for a watcher.cmd file there, and will record its pid and child process pids in watcher/locks.
+A watcher directory is created in the directory to be watched. watcher.sh looks for a watcher.cmd file there, will keep track of child process with watcher/locks, and log watcher activities in watcher/watcher.log.
 
 ## Helper application
 Watcher will call --app with each new file discovered as an argument. That application is responsible for moving or renaming the files if you want to avoid watcher from re-processing the new files.
