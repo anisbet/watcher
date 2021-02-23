@@ -5,11 +5,13 @@ Watcher runs on a one-second cycle called a tick, and any files that match --dir
 
 Watcher can be run on different directories and file types, but only one watcher can watch any given directory. If another process tries to run a second instance in the same directory, watcher.sh displays a message with the running instance's pid and exits.
 
+Watcher and the app it runs, write to STDOUT and STDERR independently. If watcher is run without STDOUT attached, events are logged to watcher/watcher.log. This could complicate logging if watcher is run with nohup or a detactched screen session.
+
 # Instructions for running
 A watcher.sh job can be set up as follows.
 1) Create a '/foo/bar/watcher' directory. If you forget, watcher will create one automatically.
 2) Add 'run' command to watcher.cmd. 
-3) Run watcher.sh with command line, nohup, cron or what-have-you.
+3) Run watcher.sh with command line, cron or what-have-you.
 4) To stop watcher add 'stop' to the watcher.cmd file. 
 
 **NOTE: The stop command in a given watcher.cmd file prevents everyone from running that instance of watcher.**

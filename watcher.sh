@@ -57,7 +57,7 @@ EOFU!
 }
 
 ##### Non-user-related variables ########
-export VERSION=1.2
+export VERSION=1.2.1
 export application=''
 export watch_dir=''
 export is_test=false
@@ -139,8 +139,13 @@ logit()
 {
     local message="$1"
     local time=$(date +"%Y-%m-%d %H:%M:%S")
-    [[ "$is_test" == false ]] && echo -e "[$time] $message" >>$LOG_FILE
-    echo -e "[$time] $message" >&2
+    if [ -t 0 ]; then
+        # If run from an interactive shell message STDERR.
+        echo -e "[$time] $message" >&2
+    else
+        # If run from cron do write to log.
+        echo -e "[$time] $message" >>$LOG_FILE
+    fi
 }
 
 # Test if the application we want to run actually exists.
@@ -155,8 +160,10 @@ fi
 my_pid_file=$WATCHER_DIR/watcher.pid
 if [ -f "$my_pid_file" ]; then
     other_running_pid=$(cat $my_pid_file)
-    logit "Script is already running [process ${other_running_pid}]"
+    # If the user can see this in a term session show them why it didn't start.
+    [ -t 0 ] && echo "Script is already running [process ${other_running_pid}]"
     if [[ "$is_test" == true ]]; then
+        logit "Script is already running [process ${other_running_pid}]"
         logit "It can be gracefully stopped by appending 'stop' to $COMMAND_FILE "
     fi
     exit 0
@@ -165,6 +172,7 @@ else
     echo $$ > "$my_pid_file"
     # If we are starting clean up any locks from previous processes.
     if ls "$LOCK_DIR/*" 2>/dev/null; then rm "$LOCK_DIR/*"; fi
+    logit "== starting to watch $WATCHER_DIR [app: $application] [pid: $$] "
 fi
 # on exit remove the pid file as part of clean up.
 # lock files in $LOCK_DIR may be diagnostic so leave them there until next run.
