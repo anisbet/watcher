@@ -57,7 +57,7 @@ EOFU!
 }
 
 ##### Non-user-related variables ########
-export VERSION=1.2.1
+export VERSION=1.2.3
 export application=''
 export watch_dir=''
 export is_test=false
@@ -186,32 +186,39 @@ run_command()
 {
     local my_file=''
     local time=''
+    local my_message=''
+    local my_filename=''
     # Look for new files in the given directory, but there may not be any.
     ls $watch_dir 2>/dev/null | while read my_file
     do
+        # reset the output message
+        my_message="watcher - app"
         case $use_file_loop in
         # Let the helper app loop through the new files.
         false)
             # Run the app without an argument.
             if $application; then
-                logit "watcher - $application status: SUCCESS "
+                my_message="$my_message status: SUCCESS"
             else
-                logit "watcher - $application status: FAILED " 
+                my_message="$my_message status: FAILED" 
             fi
+            logit "$my_message"
             # Return breaks out of the loop since all files are handled by app.
             return
             ;;
         # Default use this loop for each file as an argument to the app.
         true)
             # Run the app with the file as argument.
+            my_filename=$(basename "$my_file")
+            my_message="$my_message processed file: '$my_filename',"
             if $application $my_file; then
-                logit "watcher - $application status: SUCCESS, param: $my_file "
+                my_message="$my_message status: SUCCESS"
             else
-                logit "watcher - $application status: FAILED, param: $my_file " 
+                my_message="$my_message status: FAILED"
             fi
+            logit "$my_message"
             ;;
         esac
-        
     done
 }
 
