@@ -172,7 +172,7 @@ else
     echo $$ > "$my_pid_file"
     # If we are starting clean up any locks from previous processes.
     if ls "$LOCK_DIR/*" 2>/dev/null; then rm "$LOCK_DIR/*"; fi
-    logit "== starting to watch $WATCHER_DIR [app: $application] [pid: $$] "
+    logit "== watch version: $VERSION [watching: $WATCHER_DIR_BASE] [app: $application] [pid: $$] "
 fi
 # on exit remove the pid file as part of clean up.
 # lock files in $LOCK_DIR may be diagnostic so leave them there until next run.
