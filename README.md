@@ -9,35 +9,34 @@ Watcher and the app it runs, write to STDOUT and STDERR independently. If watche
 
 # Instructions for running
 To set up a watcher job to say, check for new *.txt files in /foo/bar do the following.
-1) Create a '/foo/bar/watcher' directory or optionally, watcher will create one for you. 
+1. Create a '/foo/bar/watcher' directory or optionally, watcher will create one for you. 
 
 ```$ mkdir -p /foo/bar/watcher```shell
 
-2) Add 'run' command to /foo/bar/watcher/watcher.cmd.
+1. Add 'run' command to /foo/bar/watcher/watcher.cmd.
  
 ```$ echo run >> /foo/bar/watcher/watcher.cmd```shell
 
-3) Run watcher.sh from command line, cron or what-have-you.
+1. Run watcher.sh from command line, cron or what-have-you.
 
 ```$ echo run >> /foo/bar/watcher/watcher.cmd;nohup ./watcher.sh --dir=/foo/bar/*.txt --app=/app/path/app.sh```shell
 
-4) To stop watcher add 'stop' to the watcher.cmd file.
+1. To stop watcher add 'stop' to the watcher.cmd file.
 
 ```$ echo stop >> /foo/bar/watcher/watcher.cmd```shell
  
 **NOTE: The stop command prevents any new watcher process in the directory.**
 
 ## Flags
-<code>
--a, -app, --app [/foo/bar.sh]: Specifies the application to run when files appear in the path
- denoted by --dir.
--d, -dir, --dir [/foo/bar/*.flat]: Specifies the file types to watch for in the directory.
--h, -help, --help: This help message.
--n, -no_loop, --no_loop: Lets the helper app loop through the new files with no file parameter.
-    watcher will back off until it has completed all it's files.
--t, -test, --test: Display debug information to STDOUT.
--v, -version, --version: Print watcher.sh version and exits.
-</code>
+
+<code>-a, -app, --app [/foo/bar.sh]: Specifies the application to run when files appear in the path denoted by --dir.</code>
+<code>-d, -dir, --dir [/foo/bar/*.flat]: Specifies the file types to watch for in the directory.</code>
+<code>-h, -help, --help: This help message.</code>
+<code>-n, -no_loop, --no_loop: Lets the helper app loop through the new files with no file parameter.</code>
+<code>    watcher will back off until it has completed all it's files.</code>
+<code>-t, -test, --test: Display debug information to STDOUT.</code>
+<code>-v, -version, --version: Print watcher.sh version and exits.</code>
+
 
 ## watcher.cmd Commands
 Possible commands are:
