@@ -28,7 +28,17 @@ $ nohup ./watcher.sh --dir=/foo/bar/*.txt --app=/app/path/app.sh`
  
 **NOTE: The stop command prevents any new watcher process in the directory.**
 
-## Commands
+## Flags
+-a, -app, --app [/foo/bar.sh]: Specifies the application to run when files appear in the path
+ denoted by --dir.
+-d, -dir, --dir [/foo/bar/*.flat]: Specifies the file types to watch for in the directory.
+-h, -help, --help: This help message.
+-n, -no_loop, --no_loop: Lets the helper app loop through the new files with no file parameter.
+    watcher will back off until it has completed all it's files.
+-t, -test, --test: Display debug information to STDOUT.
+-v, -version, --version: Print watcher.sh version and exits.
+
+## watcher.cmd Commands
 Possible commands are:
 * run - check the supplied directories for file types.
 * stop - stops watcher.sh and does clean up of its PID file. Also prevents the service from being restarted if you want it to be turned off.
