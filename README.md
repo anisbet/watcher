@@ -1,29 +1,24 @@
 # Watcher
 This bash script watches for changes in a given directory then runs an application. It can be run like a service where the user does not have privileges to start and stop services.
 
-Watcher runs on a one-second cycle called a tick, and any files that match --dir are passed, one-at-a-time to an application specified with the required --app flag. Watcher assumed that the helper app runs synchronously and will back off until the it has finished each file before watcher.sh checks for new ones. This behaviour can be changed by running the helper as a background process.
+Watcher checks for new files in --dir every second. If any are found the application specified with the required --app flag is called, with each new file as an optional argument. Watcher assumed that the helper app runs synchronously and will back off until the it has finished each file before watcher.sh checks for new ones. This behaviour can be changed by modifying the code to the helper application as a background process.
 
 Watcher can be run on different directories and file types, but only one watcher can watch any given directory. If another process tries to run a second instance in the same directory, watcher.sh displays a message with the running instance's pid and exits.
 
 Watcher and the app it runs, write to STDOUT and STDERR independently. If watcher is run without STDOUT attached, events are logged to watcher/watcher.log. This could complicate logging if watcher is run with nohup or a detactched screen session.
 
 # Instructions for running
-A watcher.sh job can be set up as follows.
-1) Create a '/foo/bar/watcher' directory. If you forget, watcher will create one automatically.
-2) Add 'run' command to watcher.cmd. 
-3) Run watcher.sh with command line, cron or what-have-you.
+To set up a watcher job to say, check for new *.txt files in /foo/bar do the following.
+1) Create a '/foo/bar/watcher' directory or optionally, watcher will create one for you. 
+ `$ mkdir -p /foo/bar/watcher`
+2) Add 'run' command to /foo/bar/watcher/watcher.cmd.
+ `$ echo run >> /foo/bar/watcher/watcher.cmd`
+3) Run watcher.sh from command line, cron or what-have-you.
+ `$ echo run >> /foo/bar/watcher/watcher.cmd`
+ `$ nohup ./watcher.sh --dir=/foo/bar/*.txt --app=/app/path/app.sh`
 4) To stop watcher add 'stop' to the watcher.cmd file. 
-
-**NOTE: The stop command in a given watcher.cmd file prevents everyone from running that instance of watcher.**
-
-## Example
-To watch for '*.txt' files in directory '/foo/bar':
-`$ mkdir -p /foo/bar/watcher`
-`$ echo run >> /foo/bar/watcher/watcher.cmd`
-`$ nohup ./watcher.sh --dir=/foo/bar/*.txt --app=/app/path/app.sh`
-...
-When you want the watcher to stop:
-`$ echo stop >> /foo/bar/watcher/watcher.cmd`
+ `$ echo stop >> /foo/bar/watcher/watcher.cmd`
+**NOTE: The stop command prevents any new watcher process in the directory.**
 
 ## Commands
 Possible commands are:
