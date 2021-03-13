@@ -11,25 +11,24 @@ Watcher and the app it runs, write to STDOUT and STDERR independently. If watche
 To set up a watcher job to say, check for new *.txt files in /foo/bar do the following.
 1) Create a '/foo/bar/watcher' directory or optionally, watcher will create one for you. 
 
-```$ mkdir -p /foo/bar/watcher```bash
+```$ mkdir -p /foo/bar/watcher```shell
 
 2) Add 'run' command to /foo/bar/watcher/watcher.cmd.
  
-```$ echo run >> /foo/bar/watcher/watcher.cmd```bash
+```$ echo run >> /foo/bar/watcher/watcher.cmd```shell
 
 3) Run watcher.sh from command line, cron or what-have-you.
 
-```$ echo run >> /foo/bar/watcher/watcher.cmd
-$ nohup ./watcher.sh --dir=/foo/bar/*.txt --app=/app/path/app.sh```bash
+```$ echo run >> /foo/bar/watcher/watcher.cmd;nohup ./watcher.sh --dir=/foo/bar/*.txt --app=/app/path/app.sh```shell
 
 4) To stop watcher add 'stop' to the watcher.cmd file.
 
-```$ echo stop >> /foo/bar/watcher/watcher.cmd```bash
+```$ echo stop >> /foo/bar/watcher/watcher.cmd```shell
  
 **NOTE: The stop command prevents any new watcher process in the directory.**
 
 ## Flags
-```bash
+<code>
 -a, -app, --app [/foo/bar.sh]: Specifies the application to run when files appear in the path
  denoted by --dir.
 -d, -dir, --dir [/foo/bar/*.flat]: Specifies the file types to watch for in the directory.
@@ -38,7 +37,7 @@ $ nohup ./watcher.sh --dir=/foo/bar/*.txt --app=/app/path/app.sh```bash
     watcher will back off until it has completed all it's files.
 -t, -test, --test: Display debug information to STDOUT.
 -v, -version, --version: Print watcher.sh version and exits.
-```
+</code>
 
 ## watcher.cmd Commands
 Possible commands are:
