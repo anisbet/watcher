@@ -29,17 +29,12 @@ To set up a watcher job to say, check for new *.txt files in /foo/bar do the fol
 
 ## Flags
 
-<code>-a, -app, --app [/foo/bar.sh]: Specifies the application to run when files appear in the path denoted by --dir.</code>
-
-<code>-d, -dir, --dir [/foo/bar/*.flat]: Specifies the file types to watch for in the directory.</code>
-
-<code>-h, -help, --help: This help message.</code>
-
-<code>-n, -no_loop, --no_loop: Lets the helper app loop through the new files with no file parameter. watcher will back off until it has completed all it's files.</code>
-
-<code>-t, -test, --test: Display debug information to STDOUT.</code>
-
-<code>-v, -version, --version: Print watcher.sh version and exits.</code>
+- -a, -app, --app [/foo/bar.sh]: Specifies the application to run when files appear in the path denoted by --dir.
+- -d, -dir, --dir [/foo/bar/*.flat]: Specifies the file types to watch for in the directory.
+- -h, -help, --help: This help message.
+- -n, -no_loop, --no_loop: Lets the helper app loop through the new files with no file parameter. watcher will back off until it has completed all it's files.
+- -t, -test, --test: Display debug information to STDOUT.
+- -v, -version, --version: Print watcher.sh version and exits.
 
 
 ## watcher.cmd Commands
