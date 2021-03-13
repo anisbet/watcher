@@ -1,7 +1,9 @@
 # Watcher
 This bash script watches for changes in a given directory then runs an application. It can be run like a service where the user does not have privileges to start and stop services.
 
-Watcher checks for new files in --dir every second. If any are found the application specified with the required --app flag is called. The --no_loop flag calls the application without arguments, but by default watcher.sh passes each file match to the application sequentially. Watcher assumed that the helper app runs synchronously and will back off until the it has finished each file before watcher.sh checks for new ones. This behaviour can be changed by modifying the code to the helper application as a background process.
+Watcher checks for new files in --dir every second. If any are found the application specified with the required --app flag is called. By default watcher.sh passes each file match to the application sequentially, but <code>--no_loop</code> flag calls the application with no arguments. 
+
+Watcher assumes that the helper app runs synchronously, and will not start a new one if one is already running. This behaviour can be changed by modifying the code to the helper application as a background process.
 
 Watcher can be run on different directories and file types, but only one watcher can watch any given directory. If another process tries to run a second instance in the same directory, watcher.sh displays a message with the running instance's pid and exits.
 
