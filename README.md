@@ -19,7 +19,7 @@ To set up a watcher job to say, check for new *.txt files in /foo/bar do the fol
 
 3) Run watcher.sh from command line, cron or what-have-you.
 
-`$ echo run >> /foo/bar/watcher/watcher.cmd
+`$ echo run >> /foo/bar/watcher/watcher.cmd;
 $ nohup ./watcher.sh --dir=/foo/bar/*.txt --app=/app/path/app.sh`
 
 4) To stop watcher add 'stop' to the watcher.cmd file.
