@@ -11,7 +11,7 @@ Watcher and the app it runs, write to STDOUT and STDERR independently. If watche
 To set up a watcher job to say, check for new *.txt files in /foo/bar do the following.
 1) Create a '/foo/bar/watcher' directory or optionally, watcher will create one for you. 
 
-```$ mkdir -p /foo/bar/watcher```bas
+```$ mkdir -p /foo/bar/watcher```bash
 
 2) Add 'run' command to /foo/bar/watcher/watcher.cmd.
  
@@ -20,11 +20,11 @@ To set up a watcher job to say, check for new *.txt files in /foo/bar do the fol
 3) Run watcher.sh from command line, cron or what-have-you.
 
 ```$ echo run >> /foo/bar/watcher/watcher.cmd
-$ nohup ./watcher.sh --dir=/foo/bar/*.txt --app=/app/path/app.sh```bas
+$ nohup ./watcher.sh --dir=/foo/bar/*.txt --app=/app/path/app.sh```bash
 
 4) To stop watcher add 'stop' to the watcher.cmd file.
 
-```$ echo stop >> /foo/bar/watcher/watcher.cmd```bas
+```$ echo stop >> /foo/bar/watcher/watcher.cmd```bash
  
 **NOTE: The stop command prevents any new watcher process in the directory.**
 
