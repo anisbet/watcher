@@ -57,7 +57,7 @@ EOFU!
 }
 
 ##### Non-user-related variables ########
-export VERSION=1.2.3
+export VERSION=1.2.4
 export application=''
 export watch_dir=''
 export is_test=false
@@ -176,7 +176,7 @@ else
 fi
 # on exit remove the pid file as part of clean up.
 # lock files in $LOCK_DIR may be diagnostic so leave them there until next run.
-trap 'rm -f "$my_pid_file"; logit "Cleaning up, exiting."' EXIT
+trap 'rm -f "$my_pid_file"; if ls "$LOCK_DIR/*" 2>/dev/null; then rm "$LOCK_DIR/*"; fi; logit "Cleaning up, exiting."' EXIT
 # If the process is killed with ctrl-c the script will exit and the above
 # trap will also fire.
 trap 'ls -laR $WATCHER_DIR; logit "Received SIGINT"; exit 1' SIGINT
