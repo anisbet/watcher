@@ -20,6 +20,7 @@
 # Wed 17 Feb 2021 10:26:29 AM EST
 #
 ###############################################################################
+set -o pipefail
 
 . ~/.bashrc
 
@@ -37,10 +38,14 @@ for files in '/foo/bar/*.txt' can be set up as follows.
 1) Create a '/foo/bar/watcher' directory. If you forget, watcher 
    will create one automatically.
 2) Set the directory and file types to watch for: --dir='/foo/bar/*.txt'
-3) Set watcher command to run: echo run >> /foo/bar/watcher/watcher.cmd 
-4) Stop the process with: echo stop >> /foo/bar/watcher/watcher.cmd
+3) Set watcher command to run: echo 'run' >> /foo/bar/watcher/watcher.cmd 
+4) Stop the process with: echo 'stop' >> /foo/bar/watcher/watcher.cmd
 
-**NOTE: The stop command prevents everyone from running watcher on /foo/bar.**
+**NOTE: The stop command prevents everyone from running watcher on the directory
+being watched, in this case /foo/bar. This stops unseen processes like forgotten
+crontab tasks from trying to start a watcher.
+
+Also note, 'run', 'Run', and 'RUN' are equivalent, as are 'stop', 'Stop', and 'STOP'.
 
 Flags:
 -a, -app, --app [/foo/bar.sh]: Specifies the application to run when files appear in the path
@@ -57,7 +62,7 @@ EOFU!
 }
 
 ##### Non-user-related variables ########
-export VERSION=1.2.4
+export VERSION=1.2.5
 export application=''
 export watch_dir=''
 export is_test=false
@@ -115,19 +120,6 @@ done
 # Make a directory where we store the command and pids of child processes.
 WATCHER_DIR_BASE=$(dirname "$watch_dir")
 WATCHER_DIR=$WATCHER_DIR_BASE/watcher
-# The command to run should be the first non-commented line is the command file.
-# Possible commands are:
-#  * run - check the supplied directories for flat files and if found load them.
-#  * stop - Stop checking, clean up any child processes and exit.
-COMMAND_FILE=$WATCHER_DIR/watcher.cmd
-LOCK_DIR=$WATCHER_DIR/locks
-[[ "$is_test" == true ]] && echo "lock dir: $LOCK_DIR " >&2
-[[ "$is_test" == true ]] && echo "cmds dir: $COMMAND_FILE " >&2
-[[ "$is_test" == true ]] && echo "watch dir: $WATCHER_DIR " >&2
-if [ ! -d "$LOCK_DIR" ]; then
-    echo "creating $WATCHER_DIR"
-    mkdir -p "$LOCK_DIR"
-fi
 ## Set up logging.
 LOG_FILE="$WATCHER_DIR/watcher.log"
 # Logs messages to STDERR and $LOG file.
@@ -142,15 +134,27 @@ logit()
     if [ -t 0 ]; then
         # If run from an interactive shell message STDERR.
         echo -e "[$time] $message" >&2
-    else
-        # If run from cron do write to log.
-        echo -e "[$time] $message" >>$LOG_FILE
     fi
+    echo -e "[$time] $message" >>$LOG_FILE
 }
+
+# The command to run should be the first non-commented line is the command file.
+# Possible commands are:
+#  * run - check the supplied directories for flat files and if found load them.
+#  * stop - Stop checking, clean up any child processes and exit.
+COMMAND_FILE=$WATCHER_DIR/watcher.cmd
+LOCK_DIR=$WATCHER_DIR/locks
+[ "$is_test" == true ] && logit "lock dir: $LOCK_DIR "
+[ "$is_test" == true ] && logit "cmds dir: $COMMAND_FILE "
+[ "$is_test" == true ] && logit "watch dir: $WATCHER_DIR "
+if [ ! -d "$LOCK_DIR" ]; then
+    logit "creating $WATCHER_DIR"
+    mkdir -p "$LOCK_DIR"
+fi
 
 # Test if the application we want to run actually exists.
 # If the application does not at least 755 permissions -x will fail.
-if [[ ! -x "$application" ]]; then
+if [ ! -x "$application" ]; then
     logit "Error: could not find $application or it may not be executable."
     exit 1
 fi
@@ -160,23 +164,26 @@ fi
 my_pid_file=$WATCHER_DIR/watcher.pid
 if [ -f "$my_pid_file" ]; then
     other_running_pid=$(cat $my_pid_file)
-    # If the user can see this in a term session show them why it didn't start.
-    [ -t 0 ] && echo "Script is already running [process ${other_running_pid}]"
-    if [[ "$is_test" == true ]]; then
-        logit "Script is already running [process ${other_running_pid}]"
-        logit "It can be gracefully stopped by appending 'stop' to $COMMAND_FILE "
+    # If there is no such process then remove the PID file and continue.
+    if pgrep --parent "$other_running_pid" >/dev/null 2>&1 ; then
+        if [ "$is_test" == true ]; then
+            logit "Script is already running with process $other_running_pid"
+        fi
+        exit 0
+    else
+        logit "Found PID file for another watcher process ($other_running_pid) but no such process is running. Cleaning it up."
+        rm $my_pid_file
     fi
-    exit 0
-else
-    # Create a file with current PID to indicate that process is running.
-    echo $$ > "$my_pid_file"
-    # If we are starting clean up any locks from previous processes.
-    if ls "$LOCK_DIR/*" 2>/dev/null; then rm "$LOCK_DIR/*"; fi
-    logit "== watch version: $VERSION [watching: $WATCHER_DIR_BASE] [app: $application] [pid: $$] "
 fi
+# Create a file with current PID to indicate that process is running.
+echo $$ > "$my_pid_file"
+# If we are starting clean up any locks from previous processes.
+if ls "$LOCK_DIR/*" 2>/dev/null; then rm "$LOCK_DIR/*"; fi
+logit "== watch version: $VERSION [watching: $WATCHER_DIR_BASE] [app: $application] [pid: $$] "
+
 # on exit remove the pid file as part of clean up.
 # lock files in $LOCK_DIR may be diagnostic so leave them there until next run.
-trap 'rm -f "$my_pid_file"; if ls "$LOCK_DIR/*" 2>/dev/null; then rm "$LOCK_DIR/*"; fi; logit "Cleaning up, exiting."' EXIT
+trap 'rm -f "$my_pid_file"; if ls "$LOCK_DIR/*" 2>/dev/null; then rm "$LOCK_DIR/*"; fi; logit "Received SIGINT cleaning up and exiting."' EXIT
 # If the process is killed with ctrl-c the script will exit and the above
 # trap will also fire.
 trap 'ls -laR $WATCHER_DIR; logit "Received SIGINT"; exit 1' SIGINT
@@ -241,7 +248,7 @@ while true; do
 
     # Now test the command read from file.
     case $CMD_STR in
-        r|run)
+        r|run|Run|RUN)
             # Check if the previous process is still running and if it is back off
             if ls $LOCK_DIR/* >/dev/null 2>&1 ; then
                 ls $LOCK_DIR/* | while read running_process
@@ -249,7 +256,7 @@ while true; do
                     old_pid=$(basename $running_process)
                     if ! pgrep --parent "${old_pid}" >/dev/null 2>&1 ; then
                         rm $running_process
-                        [[ "$is_test" == true ]] && logit "process $old_pid finished"
+                        [ "$is_test" == true ] && logit "process $old_pid finished"
                     fi
                 done
             else
@@ -258,15 +265,19 @@ while true; do
                 run_command &
                 pid=${!}
                 touch $LOCK_DIR/$pid
-                [[ "$is_test" == true ]] && logit "starting process: $pid"
+                [ "$is_test" == true ] && logit "starting process: $pid"
             fi
             ;;
-        s|stop)
-            logit "stop requested [$COMMAND_FILE]"
+        s|stop|Stop|STOP)
+            logit "Nothing to do, $COMMAND_FILE contains 'stop' command."
+            if [ "$is_test" == true ]; then
+                logit "To watch a directory add 'run' as the last line in $COMMAND_FILE and launch again."
+                logit "See --help for more information, exiting."
+            fi
             exit 0
             ;;
         *)
-            logit "Error: garbled command [$COMMAND_FILE].\nSee --help for more information, exiting."
+            logit "Error: garbled command $COMMAND_FILE.\nSee --help for more information, exiting."
             exit 1
             ;;
     esac
