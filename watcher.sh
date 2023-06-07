@@ -62,7 +62,7 @@ EOFU!
 }
 
 ##### Non-user-related variables ########
-export VERSION=1.2.6
+export VERSION=1.2.7
 export application=''
 export watch_dir=''
 export is_test=false
@@ -296,7 +296,7 @@ while true; do
             fi
             ;;
         s|stop|Stop|STOP)
-            logit "Nothing to do, $COMMAND_FILE contains 'stop' command."
+            logit "$COMMAND_FILE contains 'stop' command."
             if [ "$is_test" == true ]; then
                 logit "To watch a directory add 'run' as the last line in $COMMAND_FILE and launch again."
                 logit "See --help for more information, exiting."
