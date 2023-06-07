@@ -62,7 +62,7 @@ EOFU!
 }
 
 ##### Non-user-related variables ########
-export VERSION=1.2.5
+export VERSION=1.2.6
 export application=''
 export watch_dir=''
 export is_test=false
@@ -144,18 +144,41 @@ logit()
 #  * stop - Stop checking, clean up any child processes and exit.
 COMMAND_FILE=$WATCHER_DIR/watcher.cmd
 LOCK_DIR=$WATCHER_DIR/locks
-[ "$is_test" == true ] && logit "lock dir: $LOCK_DIR "
-[ "$is_test" == true ] && logit "cmds dir: $COMMAND_FILE "
-[ "$is_test" == true ] && logit "watch dir: $WATCHER_DIR "
-if [ ! -d "$LOCK_DIR" ]; then
-    logit "creating $WATCHER_DIR"
-    mkdir -p "$LOCK_DIR"
+# Set up the infrastructure to run watcher.
+if [ ! -d "$WATCHER_DIR" ]; then
+    if mkdir -p "$WATCHER_DIR"; then
+        logit "creating $WATCHER_DIR"
+    else
+        logit "*error, failed to create $WATCHER_DIR. Check directory permissions."
+        exit 1
+    fi
 fi
-
+# Set up the locks directory for processes still running since watcher last checked.
+if [ ! -d "$LOCK_DIR" ]; then
+    if mkdir -p "$LOCK_DIR"; then
+        logit "creating $LOCK_DIR"
+    else
+        logit "*error, failed to create $LOCK_DIR. Check directory permissions."
+        exit 1
+    fi
+fi
+# Create a command file with 'run' and explaination for quick start up.
+if [ ! -f "$COMMAND_FILE" ]; then
+    # Default command to run.
+    if echo -e "# Use 'run' or 'stop' to control if watcher runs.\nrun" >$COMMAND_FILE; then
+        logit "created $COMMAND_FILE"
+    else
+        logit "*error, $COMMAND_FILE could not be found or created. Check directory permissions."
+        exit 1
+    fi
+fi
+[ "$is_test" == true ] && logit "lock dir: $LOCK_DIR "
+[ "$is_test" == true ] && logit "cmds file: $COMMAND_FILE "
+[ "$is_test" == true ] && logit "watch dir: $WATCHER_DIR "
 # Test if the application we want to run actually exists.
 # If the application does not at least 755 permissions -x will fail.
 if [ ! -x "$application" ]; then
-    logit "Error: could not find $application or it may not be executable."
+    logit "*error: could not find $application or it may not be executable."
     exit 1
 fi
 
@@ -163,15 +186,19 @@ fi
 # If another instance tries to run while this one is running exit.
 my_pid_file=$WATCHER_DIR/watcher.pid
 if [ -f "$my_pid_file" ]; then
-    other_running_pid=$(cat $my_pid_file)
+    running_pid=$(cat $my_pid_file)
     # If there is no such process then remove the PID file and continue.
-    if pgrep --parent "$other_running_pid" >/dev/null 2>&1 ; then
+    # Didn't use pgrep because it requires all arguments including '--' and becomes fragile
+    # if you don't include everything. Surround the pid with space or pid 1111 will match
+    # '91111'.
+    if ps aux | grep " $running_pid " | grep -v "grep" >/dev/null 2>&1 ; then
+        # If there is another process watching the --dir watch directory, exit quietly.
         if [ "$is_test" == true ]; then
-            logit "Script is already running with process $other_running_pid"
+            logit "Script is already running with process $running_pid"
         fi
         exit 0
     else
-        logit "Found PID file for another watcher process ($other_running_pid) but no such process is running. Cleaning it up."
+        logit "Found PID file for another watcher process ($running_pid) but no such process is running. Cleaning it up."
         rm $my_pid_file
     fi
 fi
@@ -183,7 +210,7 @@ logit "== watch version: $VERSION [watching: $WATCHER_DIR_BASE] [app: $applicati
 
 # on exit remove the pid file as part of clean up.
 # lock files in $LOCK_DIR may be diagnostic so leave them there until next run.
-trap 'rm -f "$my_pid_file"; if ls "$LOCK_DIR/*" 2>/dev/null; then rm "$LOCK_DIR/*"; fi; logit "Received SIGINT cleaning up and exiting."' EXIT
+trap 'rm -f "$my_pid_file"; if ls "$LOCK_DIR/*" 2>/dev/null; then rm "$LOCK_DIR/*"; fi; logit "Halting for stop (or SIGINT), cleaning up and exiting."' EXIT
 # If the process is killed with ctrl-c the script will exit and the above
 # trap will also fire.
 trap 'ls -laR $WATCHER_DIR; logit "Received SIGINT"; exit 1' SIGINT
@@ -253,6 +280,7 @@ while true; do
             if ls $LOCK_DIR/* >/dev/null 2>&1 ; then
                 ls $LOCK_DIR/* | while read running_process
                 do
+                    # Remove locks for child processes that have finished.
                     old_pid=$(basename $running_process)
                     if ! pgrep --parent "${old_pid}" >/dev/null 2>&1 ; then
                         rm $running_process
@@ -260,8 +288,7 @@ while true; do
                     fi
                 done
             else
-                # read the flat file directories, from the watcher.cmd file
-                # and look for flat files in those directories.
+                # Look for new files in the --dir directory.
                 run_command &
                 pid=${!}
                 touch $LOCK_DIR/$pid
